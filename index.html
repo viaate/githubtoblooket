@@ -342,5 +342,159 @@ function extractPairs(lines) {
   return pairs;
 }
 
-// Load template automatically when page loads
-document.addEventListener(
+// Load template and wire up events when page loads (robust for GitHub Pages)
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    loadEmbeddedTemplate();
+  } catch (e) {
+    console.error('Failed to load template on DOMContentLoaded', e);
+  }
+
+  const generateBtnEl = document.getElementById("generate");
+  const clearBtnEl = document.getElementById("clear");
+
+  if (!generateBtnEl || !clearBtnEl) {
+    console.error('Required buttons not found in DOM');
+    return;
+  }
+
+  generateBtnEl.addEventListener("click", onGenerateClick);
+  clearBtnEl.addEventListener("click", onClearClick);
+});
+
+async function onGenerateClick() {
+  const generateBtn = document.getElementById("generate");
+  const generateText = document.getElementById("generateText");
+  const generateSpinner = document.getElementById("generateSpinner");
+  
+  // Show loading state
+  generateBtn.disabled = true;
+  generateText.textContent = "🔄 Processing...";
+  generateSpinner.classList.remove("hidden");
+
+  try {
+    if (!templateData || !Array.isArray(templateHeaders) || templateHeaders.length === 0) {
+      throw new Error("Template not loaded. Please refresh the page.");
+    }
+
+    const text = document.getElementById("quizletInput").value;
+    if(!text.trim()) {
+      throw new Error("Please paste Quizlet text first!");
+    }
+
+    let lines = text.split(/\n/);
+    lines = cleanLines(lines);
+
+    const pairs = extractPairs(lines);
+
+    if(pairs.length === 0) {
+      throw new Error("No flashcards detected. Make sure you pasted the full Quizlet text.");
+    }
+
+    // Build word bank from definitions
+    const wordBank = pairs.map(p => p[1]);
+
+    // Create new data array with template structure
+    const newData = [];
+    
+    pairs.forEach(([term, correct], index) => {
+      // Choose 3 random wrong answers from word bank excluding correct
+      const wrongs = wordBank.filter(w => w !== correct).sort(() => 0.5 - Math.random()).slice(0,3);
+      // Randomize answer positions
+      const answers = [...wrongs, correct].sort(() => 0.5 - Math.random());
+      const correctIndex = answers.indexOf(correct) + 1;
+
+      // Create row based on template structure
+      const newRow = [];
+      templateHeaders.forEach((header, colIndex) => {
+        if (header && header.toString().toLowerCase().includes('question #')) {
+          newRow.push(index + 1);
+        } else if (header && header.toString().toLowerCase().includes('question text')) {
+          newRow.push(term);
+        } else if (header && header.toString().toLowerCase().includes('answer 1')) {
+          newRow.push(answers[0] || "");
+        } else if (header && header.toString().toLowerCase().includes('answer 2')) {
+          newRow.push(answers[1] || "");
+        } else if (header && header.toString().toLowerCase().includes('answer 3')) {
+          newRow.push(answers[2] || "");
+        } else if (header && header.toString().toLowerCase().includes('answer 4')) {
+          newRow.push(answers[3] || "");
+        } else if (header && header.toString().toLowerCase().includes('time limit')) {
+          newRow.push(20);
+        } else if (header && header.toString().toLowerCase().includes('correct answer')) {
+          newRow.push(correctIndex);
+        } else {
+          newRow.push(""); // Fill empty for other columns
+        }
+      });
+      
+      newData.push(newRow);
+    });
+
+    // Update preview table
+    const previewTable = document.getElementById("previewTable");
+    previewTable.innerHTML = "";
+    
+    newData.forEach(row => {
+      const tr = document.createElement("tr");
+      row.forEach(cell => {
+        const td = document.createElement("td");
+        td.textContent = cell;
+        tr.appendChild(td);
+      });
+      previewTable.appendChild(tr);
+    });
+
+    document.getElementById("previewContainer").classList.remove("hidden");
+
+    // Generate CSV download using template structure
+    const csvContent = Papa.unparse([templateHeaders, ...newData]);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "blooket_import.csv";
+    a.click();
+
+    // Success state
+    generateText.textContent = "✅ CSV Generated!";
+    setTimeout(() => {
+      generateText.textContent = "Generate Blooket CSV";
+    }, 2000);
+
+  } catch (error) {
+    alert(error.message);
+    generateText.textContent = "🚀 Generate Blooket CSV";
+  } finally {
+    // Hide loading state
+    generateBtn.disabled = false;
+    generateSpinner.classList.add("hidden");
+  }
+}
+
+function onClearClick() {
+  document.getElementById("quizletInput").value = "";
+  document.getElementById("previewContainer").classList.add("hidden");
+  document.getElementById("previewTable").innerHTML = "";
+  document.getElementById("generateText").textContent = "Generate Blooket CSV";
+}
+</script>
+
+<!-- Footer -->
+<footer class="blooket-footer">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <div style="margin-bottom: 15px;">
+      <strong>Transform your Quizlet sets into Blooket games effortlessly</strong>
+    </div>
+    <div style="margin-bottom: 15px;">
+      ✓ Official Blooket Template &nbsp;&nbsp; ✓ Instant CSV Generation &nbsp;&nbsp; ✓ Ready to Import
+    </div>
+    <div style="font-size: 12px; opacity: 0.8;">
+      This tool uses the official Blooket import template format
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
