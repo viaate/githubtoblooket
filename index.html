@@ -5,12 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quizlet → Blooket CSV</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
 
   <h1 class="text-3xl font-bold mb-4 text-center">Quizlet → Blooket CSV Converter</h1>
-  <p class="mb-6 text-center text-gray-700">Paste your Quizlet set text below. The site will detect flashcard terms and definitions and generate a CSV.</p>
+  <p class="mb-6 text-center text-gray-700">Load the Blooket template and paste your Quizlet set text below.</p>
+
+  <div class="mb-4 w-full max-w-3xl">
+    <label for="templateInput" class="block text-sm font-medium text-gray-700 mb-2">Load Blooket Template (Excel file):</label>
+    <input type="file" id="templateInput" accept=".xlsx,.xls" class="w-full p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+  </div>
 
   <textarea id="quizletInput" rows="20" class="w-full max-w-3xl p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Paste full Quizlet text here..."></textarea>
   
@@ -24,11 +30,12 @@
     <table class="min-w-full bg-white rounded-md shadow overflow-hidden">
       <thead class="bg-gray-200">
         <tr>
+          <th class="px-4 py-2 border">Question #</th>
           <th class="px-4 py-2 border">Question Text</th>
           <th class="px-4 py-2 border">Answer 1</th>
           <th class="px-4 py-2 border">Answer 2</th>
-          <th class="px-4 py-2 border">Answer 3</th>
-          <th class="px-4 py-2 border">Answer 4</th>
+          <th class="px-4 py-2 border">Answer 3 (Optional)</th>
+          <th class="px-4 py-2 border">Answer 4 (Optional)</th>
           <th class="px-4 py-2 border">Time Limit (sec)</th>
           <th class="px-4 py-2 border">Correct Answer(s)</th>
         </tr>
@@ -38,6 +45,9 @@
   </div>
 
 <script>
+let templateData = null;
+let templateHeaders = [];
+
 function cleanLines(lines) {
   // Remove empty lines and noise
   const noisePatterns = [
@@ -82,7 +92,68 @@ function extractPairs(lines) {
   return pairs;
 }
 
+// Load template when file is selected
+document.getElementById("templateInput").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      
+      // Convert to JSON to get the structure
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+      
+      console.log("Raw template data:", jsonData);
+      
+      // Find the actual headers row (skip the "Blooket Import Template" header)
+      let headerRowIndex = -1;
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (row && row.length > 0 && row[0] && row[0].toString().toLowerCase().includes('question')) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+      
+      if (headerRowIndex >= 0) {
+        templateHeaders = jsonData[headerRowIndex]; // Found the actual headers
+        templateData = jsonData.slice(headerRowIndex + 1); // Data after headers
+        console.log("Template loaded successfully");
+        console.log("Headers found at row:", headerRowIndex);
+        console.log("Headers:", templateHeaders);
+        
+        // Update preview table headers
+        const previewHeaders = document.querySelector("#previewContainer thead tr");
+        previewHeaders.innerHTML = "";
+        templateHeaders.forEach(header => {
+          if (header && header.toString().trim()) { // Only add non-empty headers
+            const th = document.createElement("th");
+            th.className = "px-4 py-2 border";
+            th.textContent = header;
+            previewHeaders.appendChild(th);
+          }
+        });
+      } else {
+        alert("Could not find the data headers in the template file. Please make sure you're using the correct Blooket template.");
+      }
+    } catch (error) {
+      alert("Error loading template: " + error.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
 document.getElementById("generate").addEventListener("click", () => {
+  if (!templateData) {
+    alert("Please load the Blooket template first!");
+    return;
+  }
+
   const text = document.getElementById("quizletInput").value;
   if(!text.trim()) {
     alert("Please paste Quizlet text first!");
@@ -102,39 +173,62 @@ document.getElementById("generate").addEventListener("click", () => {
   // Build word bank from definitions
   const wordBank = pairs.map(p => p[1]);
 
-  // Build CSV rows
-  const csvRows = [["Question Text","Answer 1","Answer 2","Answer 3 (Optional)","Answer 4 (Optional)","Time Limit (sec)","Correct Answer(s)"]];
-  const previewTable = document.getElementById("previewTable");
-  previewTable.innerHTML = "";
-
-  pairs.forEach(([term, correct]) => {
+  // Create new data array with template structure
+  const newData = [];
+  
+  pairs.forEach(([term, correct], index) => {
     // Choose 3 random wrong answers from word bank excluding correct
     const wrongs = wordBank.filter(w => w !== correct).sort(() => 0.5 - Math.random()).slice(0,3);
     // Randomize answer positions
     const answers = [...wrongs, correct].sort(() => 0.5 - Math.random());
     const correctIndex = answers.indexOf(correct) + 1;
 
-    csvRows.push([term, ...answers, 20, correctIndex]);
+    // Create row based on template structure
+    const newRow = [];
+    templateHeaders.forEach((header, colIndex) => {
+      if (header.toLowerCase().includes('question #')) {
+        newRow.push(index + 1);
+      } else if (header.toLowerCase().includes('question text')) {
+        newRow.push(term);
+      } else if (header.toLowerCase().includes('answer 1')) {
+        newRow.push(answers[0] || "");
+      } else if (header.toLowerCase().includes('answer 2')) {
+        newRow.push(answers[1] || "");
+      } else if (header.toLowerCase().includes('answer 3')) {
+        newRow.push(answers[2] || "");
+      } else if (header.toLowerCase().includes('answer 4')) {
+        newRow.push(answers[3] || "");
+      } else if (header.toLowerCase().includes('time limit')) {
+        newRow.push(20);
+      } else if (header.toLowerCase().includes('correct answer')) {
+        newRow.push(correctIndex);
+      } else {
+        newRow.push(""); // Fill empty for other columns
+      }
+    });
+    
+    newData.push(newRow);
+  });
 
-    // Add preview row
-    const row = document.createElement("tr");
-    answers.forEach(a => {
+  // Update preview table
+  const previewTable = document.getElementById("previewTable");
+  previewTable.innerHTML = "";
+  
+  newData.forEach(row => {
+    const tr = document.createElement("tr");
+    row.forEach(cell => {
       const td = document.createElement("td");
       td.className = "px-4 py-2 border";
-      td.textContent = a;
-      row.appendChild(td);
+      td.textContent = cell;
+      tr.appendChild(td);
     });
-    const tdQuestion = document.createElement("td"); tdQuestion.className="px-4 py-2 border"; tdQuestion.textContent=term; row.prepend(tdQuestion);
-    const tdTime = document.createElement("td"); tdTime.className="px-4 py-2 border"; tdTime.textContent=20; row.appendChild(tdTime);
-    const tdCorrect = document.createElement("td"); tdCorrect.className="px-4 py-2 border"; tdCorrect.textContent=correctIndex; row.appendChild(tdCorrect);
-
-    previewTable.appendChild(row);
+    previewTable.appendChild(tr);
   });
 
   document.getElementById("previewContainer").classList.remove("hidden");
 
-  // Generate CSV download
-  const csvContent = Papa.unparse(csvRows);
+  // Generate CSV download using template structure
+  const csvContent = Papa.unparse([templateHeaders, ...newData]);
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
