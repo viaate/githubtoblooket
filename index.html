@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quizlet → Blooket CSV</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+
+  <h1 class="text-3xl font-bold mb-4 text-center">Quizlet → Blooket CSV Converter</h1>
+  <p class="mb-6 text-center text-gray-700">Paste your Quizlet set text below. The site will detect flashcard terms and definitions and generate a CSV.</p>
+
+  <textarea id="quizletInput" rows="20" class="w-full max-w-3xl p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Paste full Quizlet text here..."></textarea>
+  
+  <div class="mt-4 flex space-x-4">
+    <button id="generate" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md shadow">Generate CSV</button>
+    <button id="clear" class="bg-gray-300 hover:bg-gray-400 px-6 py-2 rounded-md shadow">Clear</button>
+  </div>
+
+  <div id="previewContainer" class="mt-8 w-full max-w-5xl overflow-x-auto hidden">
+    <h2 class="text-xl font-semibold mb-2">Preview:</h2>
+    <table class="min-w-full bg-white rounded-md shadow overflow-hidden">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="px-4 py-2 border">Question Text</th>
+          <th class="px-4 py-2 border">Answer 1</th>
+          <th class="px-4 py-2 border">Answer 2</th>
+          <th class="px-4 py-2 border">Answer 3</th>
+          <th class="px-4 py-2 border">Answer 4</th>
+          <th class="px-4 py-2 border">Time Limit (sec)</th>
+          <th class="px-4 py-2 border">Correct Answer(s)</th>
+        </tr>
+      </thead>
+      <tbody id="previewTable" class="text-gray-800"></tbody>
+    </table>
+  </div>
+
+<script>
+function cleanLines(lines) {
+  // Remove empty lines and noise
+  const noisePatterns = [
+    /^Profile Picture$/i,
+    /^Students also studied$/i,
+    /^Mastered/i,
+    /^Still learning/i,
+    /^Select/i,
+    /^Practice questions/i,
+    /^[0-9]+ \/ [0-9]+$/, // e.g., 20 / 53
+    /^[0-9]+ studiers today$/i,
+    /^Flashcards$/i,
+    /^Learn$/i,
+    /^Test$/i,
+    /^Blocks$/i,
+    /^Blast$/i,
+    /^Match$/i,
+    /^Your stats$/i,
+    /^Search for flashcards$/i,
+    /^Try free upgrade$/i,
+    /^About us$/i,
+    /^Home$/i,
+    /^Notifications$/i,
+    /^New folder$/i,
+    /^©/i
+  ];
+
+  return lines.map(l => l.trim()).filter(l => l && !noisePatterns.some(p => p.test(l)));
+}
+
+function extractPairs(lines) {
+  const pairs = [];
+  for (let i = 0; i < lines.length - 1; i++) {
+    const term = lines[i];
+    const def = lines[i+1];
+    // Consider as term/definition if both are non-empty and contain letters
+    if (/[A-Za-zÀ-ÿ0-9]/.test(term) && /[A-Za-zÀ-ÿ0-9]/.test(def)) {
+      pairs.push([term, def]);
+      i++; // Skip next line since it's used as definition
+    }
+  }
+  return pairs;
+}
+
+document.getElementById("generate").addEventListener("click", () => {
+  const text = document.getElementById("quizletInput").value;
+  if(!text.trim()) {
+    alert("Please paste Quizlet text first!");
+    return;
+  }
+
+  let lines = text.split(/\n/);
+  lines = cleanLines(lines);
+
+  const pairs = extractPairs(lines);
+
+  if(pairs.length === 0) {
+    alert("No flashcards detected. Make sure you pasted the full Quizlet text.");
+    return;
+  }
+
+  // Build word bank from definitions
+  const wordBank = pairs.map(p => p[1]);
+
+  // Build CSV rows
+  const csvRows = [["Question Text","Answer 1","Answer 2","Answer 3 (Optional)","Answer 4 (Optional)","Time Limit (sec)","Correct Answer(s)"]];
+  const previewTable = document.getElementById("previewTable");
+  previewTable.innerHTML = "";
+
+  pairs.forEach(([term, correct]) => {
+    // Choose 3 random wrong answers from word bank excluding correct
+    const wrongs = wordBank.filter(w => w !== correct).sort(() => 0.5 - Math.random()).slice(0,3);
+    // Randomize answer positions
+    const answers = [...wrongs, correct].sort(() => 0.5 - Math.random());
+    const correctIndex = answers.indexOf(correct) + 1;
+
+    csvRows.push([term, ...answers, 20, correctIndex]);
+
+    // Add preview row
+    const row = document.createElement("tr");
+    answers.forEach(a => {
+      const td = document.createElement("td");
+      td.className = "px-4 py-2 border";
+      td.textContent = a;
+      row.appendChild(td);
+    });
+    const tdQuestion = document.createElement("td"); tdQuestion.className="px-4 py-2 border"; tdQuestion.textContent=term; row.prepend(tdQuestion);
+    const tdTime = document.createElement("td"); tdTime.className="px-4 py-2 border"; tdTime.textContent=20; row.appendChild(tdTime);
+    const tdCorrect = document.createElement("td"); tdCorrect.className="px-4 py-2 border"; tdCorrect.textContent=correctIndex; row.appendChild(tdCorrect);
+
+    previewTable.appendChild(row);
+  });
+
+  document.getElementById("previewContainer").classList.remove("hidden");
+
+  // Generate CSV download
+  const csvContent = Papa.unparse(csvRows);
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "blooket_import.csv";
+  a.click();
+});
+
+document.getElementById("clear").addEventListener("click", () => {
+  document.getElementById("quizletInput").value = "";
+  document.getElementById("previewContainer").classList.add("hidden");
+  document.getElementById("previewTable").innerHTML = "";
+});
+</script>
+
+</body>
+</html>
