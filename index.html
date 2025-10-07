@@ -257,7 +257,7 @@
       </table>
     </div>
     <div class="success-message">
-      ✅ Your CSV is ready for import into Blooket!
+      Success!
     </div>
   </div>
 
@@ -282,7 +282,7 @@ function loadEmbeddedTemplate() {
     
     templateData = []; // Empty data array
     
-    console.log("✅ Template loaded successfully");
+    console.log("Template loaded successfully");
     
     // Update preview table headers
     const previewHeaders = document.querySelector("#previewHeaders");
@@ -392,7 +392,7 @@ async function onGenerateClick() {
   
   // Show loading state
   generateBtn.disabled = true;
-  generateText.textContent = "🔄 Processing...";
+  generateText.textContent = "Processing...";
   generateSpinner.style.display = "inline-block";
 
   try {
@@ -481,14 +481,14 @@ async function onGenerateClick() {
     a.click();
 
     // Success state
-    generateText.textContent = "✅ CSV Generated!";
+    generateText.textContent = "CSV Generated!";
     setTimeout(() => {
       generateText.textContent = "Generate Blooket CSV";
     }, 2000);
 
   } catch (error) {
     alert(error.message);
-    generateText.textContent = "🚀 Generate Blooket CSV";
+    generateText.textContent = "Generate Blooket CSV";
   } finally {
     // Hide loading state
     generateBtn.disabled = false;
@@ -511,7 +511,7 @@ function onClearClick() {
       <strong>Transform your Quizlet sets into Blooket games effortlessly</strong>
     </div>
     <div style="margin-bottom: 15px;">
-      ✓ Official Blooket Template &nbsp;&nbsp; ✓ Instant CSV Generation &nbsp;&nbsp; ✓ Ready to Import
+      ✓ Official Blooket Template &nbsp;&nbsp; ✓ Open Source &nbsp;&nbsp; ✓ Ready to Import
     </div>
     <div style="font-size: 12px; opacity: 0.8;">
       This tool uses the official Blooket import template format
