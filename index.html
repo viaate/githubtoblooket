@@ -344,8 +344,11 @@ function extractPairs(lines) {
 
 // Load template and wire up events when page loads (robust for GitHub Pages)
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOMContentLoaded fired');
+  
   try {
     loadEmbeddedTemplate();
+    console.log('Template loaded successfully');
   } catch (e) {
     console.error('Failed to load template on DOMContentLoaded', e);
   }
@@ -353,24 +356,44 @@ document.addEventListener('DOMContentLoaded', function() {
   const generateBtnEl = document.getElementById("generate");
   const clearBtnEl = document.getElementById("clear");
 
+  console.log('Generate button found:', !!generateBtnEl);
+  console.log('Clear button found:', !!clearBtnEl);
+
   if (!generateBtnEl || !clearBtnEl) {
     console.error('Required buttons not found in DOM');
     return;
   }
 
-  generateBtnEl.addEventListener("click", onGenerateClick);
-  clearBtnEl.addEventListener("click", onClearClick);
+  generateBtnEl.addEventListener("click", function(e) {
+    console.log('Generate button clicked');
+    onGenerateClick();
+  });
+  
+  clearBtnEl.addEventListener("click", function(e) {
+    console.log('Clear button clicked');
+    onClearClick();
+  });
+  
+  console.log('Event listeners attached');
 });
 
 async function onGenerateClick() {
+  console.log('onGenerateClick called');
+  
   const generateBtn = document.getElementById("generate");
   const generateText = document.getElementById("generateText");
   const generateSpinner = document.getElementById("generateSpinner");
   
+  console.log('Elements found:', {
+    generateBtn: !!generateBtn,
+    generateText: !!generateText,
+    generateSpinner: !!generateSpinner
+  });
+  
   // Show loading state
   generateBtn.disabled = true;
   generateText.textContent = "🔄 Processing...";
-  generateSpinner.classList.remove("hidden");
+  generateSpinner.style.display = "inline-block";
 
   try {
     if (!templateData || !Array.isArray(templateHeaders) || templateHeaders.length === 0) {
@@ -469,7 +492,7 @@ async function onGenerateClick() {
   } finally {
     // Hide loading state
     generateBtn.disabled = false;
-    generateSpinner.classList.add("hidden");
+    generateSpinner.style.display = "none";
   }
 }
 
