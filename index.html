@@ -3,50 +3,300 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quizlet → Blooket CSV</title>
+  <title>Quizlet to Blooket Converter</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Titan+One&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blooket-teal: #0bc2cf;
+      --blooket-teal-dark: #099aa3;
+      --blooket-yellow: #FFD700;
+      --blooket-orange: #FFA500;
+      --blooket-white: #ffffff;
+      --blooket-gray: #f4f4f4;
+      --blooket-text: #333333;
+      --blooket-text-light: #666666;
+    }
+    
+    * {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background-color: var(--blooket-gray);
+      color: var(--blooket-text);
+      line-height: 1.6;
+    }
+    
+    .blooket-header {
+      background-color: var(--blooket-teal);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+      font-family: 'Titan One', sans-serif;
+      font-size: 2.5em;
+      text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+      margin-bottom: 20px;
+    }
+    
+    .blooket-main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: white;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .blooket-input-group {
+      margin-bottom: 25px;
+    }
+    
+    .blooket-label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+      color: var(--blooket-text);
+      font-size: 1.1em;
+    }
+    
+    .blooket-textarea {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: 'Poppins', sans-serif;
+      resize: vertical;
+      transition: border-color 0.3s ease;
+    }
+    
+    .blooket-textarea:focus {
+      outline: none;
+      border-color: var(--blooket-teal);
+      box-shadow: 0 0 0 3px rgba(11, 194, 207, 0.1);
+    }
+    
+    .blooket-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    
+    .blooket-btn {
+      background-color: var(--blooket-teal);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      font-weight: 600;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Poppins', sans-serif;
+      box-shadow: 0 4px 15px rgba(11, 194, 207, 0.3);
+    }
+    
+    .blooket-btn:hover {
+      background-color: var(--blooket-teal-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(11, 194, 207, 0.4);
+    }
+    
+    .blooket-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .blooket-btn-secondary {
+      background-color: #f8f9fa;
+      color: var(--blooket-text);
+      border: 2px solid #ddd;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .blooket-btn-secondary:hover {
+      background-color: #e9ecef;
+      border-color: #bbb;
+    }
+    
+    .blooket-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .blooket-table th {
+      background-color: var(--blooket-teal);
+      color: white;
+      padding: 15px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .blooket-table td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 14px;
+    }
+    
+    .blooket-table tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .blooket-preview {
+      background-color: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-top: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    
+    .blooket-preview h2 {
+      color: var(--blooket-teal);
+      font-family: 'Titan One', sans-serif;
+      font-size: 1.8em;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    .blooket-footer {
+      text-align: center;
+      padding: 20px;
+      background-color: var(--blooket-teal);
+      color: white;
+      font-size: 14px;
+    }
+    
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 10px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      text-align: center;
+      border: 1px solid #c3e6cb;
+    }
+  </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center p-6">
+<body>
+  <!-- Header -->
+  <header class="blooket-header">
+    Quizlet to Blooket Converter
+  </header>
 
-  <h1 class="text-3xl font-bold mb-4 text-center">Quizlet → Blooket CSV Converter</h1>
-  <p class="mb-6 text-center text-gray-700">Load the Blooket template and paste your Quizlet set text below.</p>
+  <!-- Main Content -->
+  <main class="blooket-main">
+    <div class="blooket-input-group">
+      <label for="quizletInput" class="blooket-label">
+        Paste your Quizlet set text below:
+      </label>
+      <textarea 
+        id="quizletInput" 
+        rows="15" 
+        class="blooket-textarea" 
+        placeholder="Copy and paste your full Quizlet text here... (Ctrl+V or Cmd+V)"
+      ></textarea>
+      <p style="color: var(--blooket-text-light); font-size: 14px; margin-top: 8px;">
+        💡 Tip: Copy the entire Quizlet page content for best results
+      </p>
+    </div>
+    
+    <div class="blooket-buttons">
+      <button id="generate" class="blooket-btn">
+        <span id="generateText">Generate Blooket CSV</span>
+        <div id="generateSpinner" class="loading-spinner" style="display: none;"></div>
+      </button>
+      <button id="clear" class="blooket-btn blooket-btn-secondary">
+        Clear
+      </button>
+    </div>
+  </main>
 
-  <div class="mb-4 w-full max-w-3xl">
-    <label for="templateInput" class="block text-sm font-medium text-gray-700 mb-2">Load Blooket Template (Excel file):</label>
-    <input type="file" id="templateInput" accept=".xlsx,.xls" class="w-full p-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-  </div>
-
-  <textarea id="quizletInput" rows="20" class="w-full max-w-3xl p-3 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Paste full Quizlet text here..."></textarea>
-  
-  <div class="mt-4 flex space-x-4">
-    <button id="generate" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md shadow">Generate CSV</button>
-    <button id="clear" class="bg-gray-300 hover:bg-gray-400 px-6 py-2 rounded-md shadow">Clear</button>
-  </div>
-
-  <div id="previewContainer" class="mt-8 w-full max-w-5xl overflow-x-auto hidden">
-    <h2 class="text-xl font-semibold mb-2">Preview:</h2>
-    <table class="min-w-full bg-white rounded-md shadow overflow-hidden">
-      <thead class="bg-gray-200">
-        <tr>
-          <th class="px-4 py-2 border">Question #</th>
-          <th class="px-4 py-2 border">Question Text</th>
-          <th class="px-4 py-2 border">Answer 1</th>
-          <th class="px-4 py-2 border">Answer 2</th>
-          <th class="px-4 py-2 border">Answer 3 (Optional)</th>
-          <th class="px-4 py-2 border">Answer 4 (Optional)</th>
-          <th class="px-4 py-2 border">Time Limit (sec)</th>
-          <th class="px-4 py-2 border">Correct Answer(s)</th>
-        </tr>
-      </thead>
-      <tbody id="previewTable" class="text-gray-800"></tbody>
-    </table>
+  <!-- Preview Section -->
+  <div id="previewContainer" class="blooket-preview hidden" style="max-width: 1200px; margin: 20px auto;">
+    <h2>
+      Preview Your Blooket Set
+    </h2>
+    <div style="overflow-x: auto;">
+      <table class="blooket-table">
+        <thead>
+          <tr id="previewHeaders">
+            <!-- Headers will be populated by JavaScript -->
+          </tr>
+        </thead>
+        <tbody id="previewTable"></tbody>
+      </table>
+    </div>
+    <div class="success-message">
+      ✅ Your CSV is ready for import into Blooket!
+    </div>
   </div>
 
 <script>
 let templateData = null;
 let templateHeaders = [];
+
+// Load the template structure directly (no external file needed)
+function loadEmbeddedTemplate() {
+  try {
+    // Use the official Blooket template structure
+    templateHeaders = [
+      "Question #",
+      "Question Text", 
+      "Answer 1",
+      "Answer 2",
+      "Answer 3 (Optional)",
+      "Answer 4 (Optional)",
+      "Time Limit (sec)",
+      "Correct Answer(s)"
+    ];
+    
+    templateData = []; // Empty data array
+    
+    console.log("✅ Template loaded successfully");
+    
+    // Update preview table headers
+    const previewHeaders = document.querySelector("#previewHeaders");
+    previewHeaders.innerHTML = "";
+    templateHeaders.forEach(header => {
+      const th = document.createElement("th");
+      th.textContent = header;
+      previewHeaders.appendChild(th);
+    });
+  } catch (error) {
+    console.error("Error loading template:", error);
+    alert("Error initializing template structure.");
+  }
+}
 
 function cleanLines(lines) {
   // Remove empty lines and noise
@@ -92,158 +342,5 @@ function extractPairs(lines) {
   return pairs;
 }
 
-// Load template when file is selected
-document.getElementById("templateInput").addEventListener("change", function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, {type: 'array'});
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      
-      // Convert to JSON to get the structure
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {header: 1});
-      
-      console.log("Raw template data:", jsonData);
-      
-      // Find the actual headers row (skip the "Blooket Import Template" header)
-      let headerRowIndex = -1;
-      for (let i = 0; i < jsonData.length; i++) {
-        const row = jsonData[i];
-        if (row && row.length > 0 && row[0] && row[0].toString().toLowerCase().includes('question')) {
-          headerRowIndex = i;
-          break;
-        }
-      }
-      
-      if (headerRowIndex >= 0) {
-        templateHeaders = jsonData[headerRowIndex]; // Found the actual headers
-        templateData = jsonData.slice(headerRowIndex + 1); // Data after headers
-        console.log("Template loaded successfully");
-        console.log("Headers found at row:", headerRowIndex);
-        console.log("Headers:", templateHeaders);
-        
-        // Update preview table headers
-        const previewHeaders = document.querySelector("#previewContainer thead tr");
-        previewHeaders.innerHTML = "";
-        templateHeaders.forEach(header => {
-          if (header && header.toString().trim()) { // Only add non-empty headers
-            const th = document.createElement("th");
-            th.className = "px-4 py-2 border";
-            th.textContent = header;
-            previewHeaders.appendChild(th);
-          }
-        });
-      } else {
-        alert("Could not find the data headers in the template file. Please make sure you're using the correct Blooket template.");
-      }
-    } catch (error) {
-      alert("Error loading template: " + error.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-});
-
-document.getElementById("generate").addEventListener("click", () => {
-  if (!templateData) {
-    alert("Please load the Blooket template first!");
-    return;
-  }
-
-  const text = document.getElementById("quizletInput").value;
-  if(!text.trim()) {
-    alert("Please paste Quizlet text first!");
-    return;
-  }
-
-  let lines = text.split(/\n/);
-  lines = cleanLines(lines);
-
-  const pairs = extractPairs(lines);
-
-  if(pairs.length === 0) {
-    alert("No flashcards detected. Make sure you pasted the full Quizlet text.");
-    return;
-  }
-
-  // Build word bank from definitions
-  const wordBank = pairs.map(p => p[1]);
-
-  // Create new data array with template structure
-  const newData = [];
-  
-  pairs.forEach(([term, correct], index) => {
-    // Choose 3 random wrong answers from word bank excluding correct
-    const wrongs = wordBank.filter(w => w !== correct).sort(() => 0.5 - Math.random()).slice(0,3);
-    // Randomize answer positions
-    const answers = [...wrongs, correct].sort(() => 0.5 - Math.random());
-    const correctIndex = answers.indexOf(correct) + 1;
-
-    // Create row based on template structure
-    const newRow = [];
-    templateHeaders.forEach((header, colIndex) => {
-      if (header.toLowerCase().includes('question #')) {
-        newRow.push(index + 1);
-      } else if (header.toLowerCase().includes('question text')) {
-        newRow.push(term);
-      } else if (header.toLowerCase().includes('answer 1')) {
-        newRow.push(answers[0] || "");
-      } else if (header.toLowerCase().includes('answer 2')) {
-        newRow.push(answers[1] || "");
-      } else if (header.toLowerCase().includes('answer 3')) {
-        newRow.push(answers[2] || "");
-      } else if (header.toLowerCase().includes('answer 4')) {
-        newRow.push(answers[3] || "");
-      } else if (header.toLowerCase().includes('time limit')) {
-        newRow.push(20);
-      } else if (header.toLowerCase().includes('correct answer')) {
-        newRow.push(correctIndex);
-      } else {
-        newRow.push(""); // Fill empty for other columns
-      }
-    });
-    
-    newData.push(newRow);
-  });
-
-  // Update preview table
-  const previewTable = document.getElementById("previewTable");
-  previewTable.innerHTML = "";
-  
-  newData.forEach(row => {
-    const tr = document.createElement("tr");
-    row.forEach(cell => {
-      const td = document.createElement("td");
-      td.className = "px-4 py-2 border";
-      td.textContent = cell;
-      tr.appendChild(td);
-    });
-    previewTable.appendChild(tr);
-  });
-
-  document.getElementById("previewContainer").classList.remove("hidden");
-
-  // Generate CSV download using template structure
-  const csvContent = Papa.unparse([templateHeaders, ...newData]);
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "blooket_import.csv";
-  a.click();
-});
-
-document.getElementById("clear").addEventListener("click", () => {
-  document.getElementById("quizletInput").value = "";
-  document.getElementById("previewContainer").classList.add("hidden");
-  document.getElementById("previewTable").innerHTML = "";
-});
-</script>
-
-</body>
-</html>
+// Load template automatically when page loads
+document.addEventListener(
